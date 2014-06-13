@@ -300,13 +300,103 @@ public:
 // IntervalForest Class: should hold as many trees as chromosomes. Use a map to retrive them with 'string'
 
 // template <class T, typename K = int>
-// class IntervalForest
-// {
-// public:
-//   typedef IntervalTree<T,K> intervalTree;
-//   map<string,intervalTree> forest;
+class IntervalForest {
+  
+public:
 
-// }
+  typedef Interval< vector<string> > interval;
+  typedef vector<interval> intervalVector;
+  typedef IntervalTree< vector<string> > intervalTree;
+  typedef IntegerVector::iterator intIter;
+  typedef CharacterVector::iterator charIter;
+
+  map<string,intervalTree> forest;
+  
+  // Constructors
+
+  IntervalForest(void) {
+    map<string,intervalTree> forest;
+  }
+
+  IntervalForest(SEXP& r_listData) {
+
+
+
+
+    S4 listData(r_listData);
+
+    S4 partitioning = listData.slot("partitioning");
+    S4 unlistData = listData.slot("unlistData");
+
+    CharacterVector seqNames = partitioning.slot("NAMES");
+
+    // partitioning@end = stores the end of the 'partition'
+    vector<int> partEnd = as< vector<int> >( partitioning.slot("end") );
+    vector<int>::iterator partEnd_itr = partEnd.begin();
+    partEnd.insert(partEnd_itr,0); // partEnd will store start at position i and end (not included) in position i+1 
+    partEnd_itr = partEnd.begin(); // needed?
+
+    S4 strandRle = unlistData.slot("strand");
+    IntegerVector strandVal = strandRle.slot("values");
+    IntegerVector strandLen = strandRle.slot("lengths");
+    
+    vector< int > strandValues;
+    
+    for(pair<intIter, intIter> itr(strandLen.begin(),strandVal.begin()); itr.first != strandLen.end(); 
+	++itr.first, ++itr.second)
+      for(int i = 0; i != *itr.first; ++i )
+	{
+	  strandValues.push_back(*itr.second);
+	}
+    
+    vector< string > strandLevs = as< vector< string > >(strandVal.attr("levels"));
+    
+    DataFrame metadata = unlistData.slot("elementMetadata");
+    S4 ranges = unlistData.slot("ranges");
+    
+    IntegerVector start = ranges.slot("start");
+    IntegerVector width = ranges.slot("width");
+    vector<string> exname = as< vector<string>  >(metadata["exon_name"]);
+    vector<string> txname = as< vector<string>  >(metadata["tx_name"]);
+
+    // loop along chromosomes
+
+    //QUI = use 2 vector iterators instead
+    for(int i=0; i != seqNames.size(); ++i)
+      {
+	string chrName = as<string>(seqNames(i));
+	int iStart = partEnd[i];
+	int iEnd = partEnd[i+1];
+
+	// create an intervalVector
+	intervalVector intervals;
+	for(int j=iStart; j != iEnd; ++j)
+	  {
+	    int stop = start(j) + width(j) - 1;
+	    int id = strandValues[j] - 1;
+	    vector<string> vec{txname[j], exname[j], strandLevs[id]};
+	    intervals.push_back(interval(start(j),stop,vec));
+	  }
+	
+	forest.insert(map<string,intervalTree>::value_type(chrName,intervalTree(intervals)));
+      }
+  }
+
+
+  // Assignment/copy operator
+
+  IntervalForest& operator=(const IntervalForest& other) {
+    forest = other.forest;
+    return *this;
+  }
+
+
+  // Destructor: clear the map
+  ~IntervalForest(void) {
+    forest.clear();
+  }
+  
+};
 
 
 
