@@ -42,4 +42,8 @@ id <- 6005L
 tmp <- lapply(s1,function(x) x[6001:6500])
 
 
-res <- getOverlaps(iTree,tmp) ## ex_1459!!!
+res <- getOverlaps(iTree,tmp)
+table(res)
+
+system.time(res <- getOverlaps(iTree,s1)) ## 0.8
+

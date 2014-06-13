@@ -195,7 +195,7 @@ public:
       }
     }
   }
-
+  
   void findWithin(K start, K stop, map<string,string>& contained) {
     if (!intervals.empty() && ! (stop < intervals.front().start)) {
       for (typename intervalVector::iterator i = intervals.begin(); i != intervals.end(); ++i) {
@@ -218,13 +218,13 @@ public:
   }
   
   // find query to have same start as tree interval
-  void findStart(K start, K stop, vector<string>& contained) {
+  void findStart(K start, K stop, map<string,string>& contained) {
     if (!intervals.empty() && ! (stop < intervals.front().start)) {
       for (typename intervalVector::iterator i = intervals.begin(); i != intervals.end(); ++i) {
 	interval& interval = *i;
-	if (interval.start == start && stop <= interval.stop) {
+	if (start == interval.start && stop <= interval.stop) {
 	  vector<string> insVal = interval.value;
-	  contained.push_back(insVal[0]);
+	  contained.insert(map<string,string>::value_type(insVal[0],insVal[1]));
 	}
       }
     }
@@ -236,17 +236,18 @@ public:
     if (right && stop >= center) {
       right->findStart(start, stop, contained);
     }
-    
   }
+  
+  
 
-    // find query to have same end as tree interval
-  void findEnd(K start, K stop, vector<string>& contained) {
+  // find query to have same end as tree interval
+  void findEnd(K start, K stop, map<string,string>& contained) {
     if (!intervals.empty() && ! (stop < intervals.front().start)) {
       for (typename intervalVector::iterator i = intervals.begin(); i != intervals.end(); ++i) {
 	interval& interval = *i;
 	if (start >= interval.start && stop == interval.stop) {
 	  vector<string> insVal = interval.value;
-	  contained.push_back(insVal[0]);
+	  contained.insert(map<string,string>::value_type(insVal[0],insVal[1]));
 	}
       }
     }
@@ -258,7 +259,27 @@ public:
     if (right && stop >= center) {
       right->findEnd(start, stop, contained);
     }
+  }
+
+  // find query to have exact overlap as tree interval
+  void findExact(K start, K stop, map<string,string>& contained) {
+    if (!intervals.empty() && ! (stop < intervals.front().start)) {
+      for (typename intervalVector::iterator i = intervals.begin(); i != intervals.end(); ++i) {
+	interval& interval = *i;
+	if (start == interval.start && stop == interval.stop) {
+	  vector<string> insVal = interval.value;
+	  contained.insert(map<string,string>::value_type(insVal[0],insVal[1]));
+	}
+      }
+    }
     
+    if (left && start <= center) {
+      left->findExact(start, stop, contained);
+    }
+    
+    if (right && stop >= center) {
+      right->findExact(start, stop, contained);
+    }
   }
   
   ~IntervalTree(void) {
@@ -406,11 +427,62 @@ map<KeyType, pair<LeftValue, RightValue> > IntersectMaps(const map<KeyType, Left
 
 
 // find overlaps for gapped reads
-// vector<string> matchGapped()
-// {
+map<string,string> matchGapped(IRanges_holder* irange, string strand, intervalTree& forest, int lenElt)
+{
+
+  int id = 0;
+  map<string,string> results;
+  int i_start, i_width, i_end;
+  rangeVector queries;
+  
+  // create a vector of intervals. They all have to map to the same 'junction' exon
+  // junction exons are coded as 2 or more intervals, same ex_name
+  for(int id=0; id != lenElt; ++id)
+    {
+      i_start = get_start_elt_from_IRanges_holder(irange,id);
+      i_width = get_width_elt_from_IRanges_holder(irange,id);
+      i_end = i_start + i_width - 1;
+      
+      
+      queries.push_back(iRange(i_start,i_end,strand));
+    }
 
 
-// }
+  // We expect ALL element of a gapped range to overlap EXACTLY to the same tx-exon pairs
+  // We check this iteratively setting the first (the left-most element on + strand) overlap as pivot:
+  // all others must be equal to that
+
+  for (rangeVector::iterator q = queries.begin(); q != queries.end(); ++q) {
+    map<string,string> cache_search;
+    if(q == queries.begin())
+      {
+	forest.findEnd(q->start, q->stop, cache_search);
+
+	if(cache_search.size() == 0) // no match...stop!
+	  return(results);
+	else
+	  results = cache_search;
+      }
+    else if(q < (queries.end()-1)) // all the chunks but first and last
+      {
+	forest.findWithin(q->start, q->stop, cache_search);
+	
+	if(cache_search.size() == 0 || cache_search != results)
+	  return(map<string,string>()); // no match here
+      }
+    else {
+
+      forest.findStart(q->start, q->stop, cache_search);
+
+      if(cache_search.size() == 0 || cache_search != results)
+	return(map<string,string>()); // no match here
+    }
+  }
+
+  // all 'chunks' must map to the same exon (in Sequgio's txdb junction regions are coded as a single region)
+  return(results);
+  
+}
 
 // find overlaps for ungapped reads
 
@@ -565,7 +637,7 @@ SEXP getOverlaps(SEXP r_forest, SEXP r_reads)
 	}
       else
 	{
-	  // matchGapped
+	  result_neg = matchGapped(&elt, strand[k],forest,len_elt);
 	}
 
       
