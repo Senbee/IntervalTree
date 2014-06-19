@@ -196,13 +196,14 @@ public:
     }
   }
   
-  void findWithin(K start, K stop, map<string,string>& contained) {
+  void findWithin(K start, K stop, map<string, string >& contained) {
     if (!intervals.empty() && ! (stop < intervals.front().start)) {
       for (typename intervalVector::iterator i = intervals.begin(); i != intervals.end(); ++i) {
 	interval& interval = *i;
 	if (start >= interval.start && stop <= interval.stop) {
 	  vector<string> insVal = interval.value;
-	  contained.insert(map<string,string>::value_type(insVal[0],insVal[1]));
+	  // Insert tx_name & ex_name. tx_name will be used to match pair ends (must fall within same tx!)
+	  contained.insert(map<string, string >::value_type(insVal[0],insVal[1]));
 	}
       }
     }
@@ -300,103 +301,106 @@ public:
 // IntervalForest Class: should hold as many trees as chromosomes. Use a map to retrive them with 'string'
 
 // template <class T, typename K = int>
-class IntervalForest {
+// class IntervalForest {
   
-public:
+// public:
 
-  typedef Interval< vector<string> > interval;
-  typedef vector<interval> intervalVector;
-  typedef IntervalTree< vector<string> > intervalTree;
-  typedef IntegerVector::iterator intIter;
-  typedef CharacterVector::iterator charIter;
+//   typedef Interval< vector<string> > interval;
+//   typedef vector<interval> intervalVector;
+//   typedef IntervalTree< vector<string> > intervalTree;
+//   typedef IntegerVector::iterator intIter;
+//   typedef CharacterVector::iterator charIter;
+//   typedef vector<int>::iterator vIntIter;
+//   typedef vector<string>::iterator vStrIter;
 
-  map<string,intervalTree> forest;
+//   map<string,intervalTree> forest;
   
-  // Constructors
+//   // Constructors
 
-  IntervalForest(void) {
-    map<string,intervalTree> forest;
-  }
+//   IntervalForest(void) 
+//   : forest()
+//   {}
 
-  IntervalForest(SEXP& r_listData) {
+//   IntervalForest(SEXP& r_listData) {
 
+//     S4 listData(r_listData);
 
+//     S4 partitioning = listData.slot("partitioning");
+//     S4 unlistData = listData.slot("unlistData");
 
+//     vector<string> seqNames = as< vector<string> >(partitioning.slot("NAMES"));
 
-    S4 listData(r_listData);
+//     // partitioning@end = stores the end of the 'partition'
+//     vector<int> partEnd = as< vector<int> >( partitioning.slot("end") );
+//     vIntIter partEnd_itr = partEnd.begin();
+//     partEnd.insert(partEnd_itr,0); // partEnd will store start at position i and end (not included) in position i+1 
 
-    S4 partitioning = listData.slot("partitioning");
-    S4 unlistData = listData.slot("unlistData");
-
-    CharacterVector seqNames = partitioning.slot("NAMES");
-
-    // partitioning@end = stores the end of the 'partition'
-    vector<int> partEnd = as< vector<int> >( partitioning.slot("end") );
-    vector<int>::iterator partEnd_itr = partEnd.begin();
-    partEnd.insert(partEnd_itr,0); // partEnd will store start at position i and end (not included) in position i+1 
-    partEnd_itr = partEnd.begin(); // needed?
-
-    S4 strandRle = unlistData.slot("strand");
-    IntegerVector strandVal = strandRle.slot("values");
-    IntegerVector strandLen = strandRle.slot("lengths");
+//     S4 strandRle = unlistData.slot("strand");
+//     IntegerVector strandVal = strandRle.slot("values");
+//     IntegerVector strandLen = strandRle.slot("lengths");
     
-    vector< int > strandValues;
+//     vector< int > strandValues;
+//     int counter = 0;
+//     for(pair<intIter, intIter> itr(strandLen.begin(),strandVal.begin()); itr.first != strandLen.end(); 
+// 	++itr.first, ++itr.second)
+//       {
+// 	unsigned int uInt = (unsigned int)*itr.first;
+// 	strandValues.insert(strandValues.end(),uInt,*itr.second);
+//       }
     
-    for(pair<intIter, intIter> itr(strandLen.begin(),strandVal.begin()); itr.first != strandLen.end(); 
-	++itr.first, ++itr.second)
-      for(int i = 0; i != *itr.first; ++i )
-	{
-	  strandValues.push_back(*itr.second);
-	}
+//     vector< string > strandLevs = as< vector< string > >(strandVal.attr("levels"));
     
-    vector< string > strandLevs = as< vector< string > >(strandVal.attr("levels"));
+//     DataFrame metadata = unlistData.slot("elementMetadata");
+
+//     S4 ranges = unlistData.slot("ranges");
     
-    DataFrame metadata = unlistData.slot("elementMetadata");
-    S4 ranges = unlistData.slot("ranges");
-    
-    IntegerVector start = ranges.slot("start");
-    IntegerVector width = ranges.slot("width");
-    vector<string> exname = as< vector<string>  >(metadata["exon_name"]);
-    vector<string> txname = as< vector<string>  >(metadata["tx_name"]);
+//     IntegerVector start = ranges.slot("start");
 
-    // loop along chromosomes
+//     IntegerVector width = ranges.slot("width");
 
-    //QUI = use 2 vector iterators instead
-    for(int i=0; i != seqNames.size(); ++i)
-      {
-	string chrName = as<string>(seqNames(i));
-	int iStart = partEnd[i];
-	int iEnd = partEnd[i+1];
+//     vector<string> exname = as< vector<string>  >(metadata["exon_name"]);
+//     vector<string> txname = as< vector<string>  >(metadata["tx_name"]);
 
-	// create an intervalVector
-	intervalVector intervals;
-	for(int j=iStart; j != iEnd; ++j)
-	  {
-	    int stop = start(j) + width(j) - 1;
-	    int id = strandValues[j] - 1;
-	    vector<string> vec{txname[j], exname[j], strandLevs[id]};
-	    intervals.push_back(interval(start(j),stop,vec));
-	  }
-	
-	forest.insert(map<string,intervalTree>::value_type(chrName,intervalTree(intervals)));
-      }
-  }
+//     // loop along chromosomes
+//     cout << start.size()  << endl;
+//     for(pair<vStrIter, vIntIter> itr(seqNames.begin(),partEnd.begin()); itr.first != seqNames.end(); 
+// 	++itr.first, ++itr.second)
+//       {
+// 	string chrName = *itr.first;
+// 	int iStart = *itr.second;
+// 	int iEnd = *(itr.second+1);
 
+// 	// create an intervalVector
+// 	intervalVector intervals;
 
-  // Assignment/copy operator
+// 	for(int j=iStart; j != iEnd; ++j)
+// 	  {
+// 	    int stop = start(j) + width(j) - 1;
+// 	    int id = strandValues[j] - 1;
+// 	    vector<string> vec{txname[j], exname[j], strandLevs[id]};
+// 	    intervals.push_back(interval(start(j),stop,vec));
+// 	  }
 
-  IntervalForest& operator=(const IntervalForest& other) {
-    forest = other.forest;
-    return *this;
-  }
+// 	intervalTree tree = intervalTree(intervals);
+// 	forest[chrName]  = tree;
+//       }
+//   }
 
 
-  // Destructor: clear the map
-  ~IntervalForest(void) {
-    forest.clear();
-  }
+//   // Assignment/copy operator
+
+//   IntervalForest& operator=(const IntervalForest& other) {
+//     forest = other.forest;
+//     return *this;
+//   }
+
+
+//   // Destructor: clear the map
+//   ~IntervalForest(void) {
+//     forest.clear();
+//   }
   
-};
+// };
 
 
 
@@ -413,6 +417,26 @@ DL_FUNC R_ExternalPtrAddrFn(SEXP s){
 }
 
 
+SEXP cigar_ranges(SEXP cigar, SEXP flag, SEXP space, SEXP pos, SEXP f,
+		  SEXP ops, SEXP drop_empty_ranges, SEXP reduce_ranges,
+		  SEXP with_ops) 
+{
+  SEXP xp;
+  List nativeSymbolInfo;
+  Function getNativeSymbolInfo("getNativeSymbolInfo");
+  
+  nativeSymbolInfo = getNativeSymbolInfo("cigar_ranges");
+  xp = nativeSymbolInfo["address"];
+  DL_FUNC  cigar_ranges_p = R_ExternalPtrAddrFn( xp );
+
+  static SEXP (*fun)(SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP) = 
+    (SEXP(*)(SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP)) cigar_ranges_p;
+  
+  return fun(cigar, flag, space, pos, f, ops, drop_empty_ranges, reduce_ranges,with_ops);
+}
+
+
+
 
 typedef Interval< vector<string> > interval;
 typedef Interval<string> iRange;
@@ -421,6 +445,144 @@ typedef vector<iRange> rangeVector;
 typedef IntervalTree< vector<string> > intervalTree;
 typedef IntegerVector::iterator intIter;
 typedef CharacterVector::iterator charIter;
+typedef vector<int>::iterator vIntIter;
+typedef vector<string>::iterator vStrIter;
+
+typedef map<string, intervalTree> IntervalForest;
+
+IntervalForest _makeIntervalForest(SEXP r_listData)
+{
+
+  ////////////////////////////////////////////////////////////////////////////////
+
+  Environment GA("package:GenomicAlignments");
+  CharacterVector CIGAR_OPS = GA["CIGAR_OPS"];
+  
+  SEXP flag = R_NilValue;
+  SEXP f = R_NilValue;
+  LogicalVector with_ops(1), drop_empty_ranges(1), reduce_ranges(1);
+  with_ops[0] = 0;
+  drop_empty_ranges[0] = 1;
+  reduce_ranges[0] = 0;
+  IntegerVector space(1);
+  space[0] = 3;
+
+  
+  ////////////////////////////////////////////////////////////////////////////////
+  
+
+
+  IntervalForest forest;
+
+  S4 listData(r_listData);
+  
+  S4 partitioning = listData.slot("partitioning");
+  S4 unlistData = listData.slot("unlistData");
+  
+  vector<string> seqNames = as< vector<string> >(partitioning.slot("NAMES"));
+  
+  // partitioning@end = stores the end of the 'partition'
+  vector<int> partEnd = as< vector<int> >( partitioning.slot("end") );
+  vIntIter partEnd_itr = partEnd.begin();
+  partEnd.insert(partEnd_itr,0); // partEnd will store start at position i and end (not included) in position i+1 
+  
+  S4 strandRle = unlistData.slot("strand");
+  IntegerVector strandVal = strandRle.slot("values");
+  IntegerVector strandLen = strandRle.slot("lengths");
+  
+  vector< int > strandValues;
+  int counter = 0;
+  for(pair<intIter, intIter> itr(strandLen.begin(),strandVal.begin()); itr.first != strandLen.end(); 
+      ++itr.first, ++itr.second)
+    {
+      unsigned int uInt = (unsigned int)*itr.first;
+      strandValues.insert(strandValues.end(),uInt,*itr.second);
+    }
+  
+  vector< string > strandLevs = as< vector< string > >(strandVal.attr("levels"));
+  
+  DataFrame metadata = unlistData.slot("elementMetadata");
+  
+  S4 ranges = unlistData.slot("ranges");
+  
+  IntegerVector pos = ranges.slot("start");
+
+  SEXP cigar = metadata["cigar"];
+  
+  // SEXP cigar_rng = (*cigar_ranges)(cigar, flag, space, pos, f, CIGAR_OPS, drop_empty_ranges, 
+  // 				   reduce_ranges,with_ops);
+  SEXP cigar_rng = cigar_ranges(cigar, flag, space, pos, f, CIGAR_OPS, drop_empty_ranges, 
+				reduce_ranges,with_ops);
+  
+  
+  CompressedIRangesList_holder cigar_hold = hold_CompressedIRangesList(cigar_rng);
+
+
+  
+  IntegerVector width = ranges.slot("width");
+  
+  vector<string> exname = as< vector<string>  >(metadata["exon_name"]);
+  vector<string> txname = as< vector<string>  >(metadata["tx_name"]);
+  vector<int> regionid = as< vector<int>  >(metadata["region_id"]);
+
+  // loop along chromosomes
+
+  for(pair<vStrIter, vIntIter> itr(seqNames.begin(),partEnd.begin()); itr.first != seqNames.end(); 
+      ++itr.first, ++itr.second)
+    {
+
+      string chrName = *itr.first;
+      // cout << chrName << endl;
+      int iStart = *itr.second;
+      int iEnd = *(itr.second+1);
+      
+      // create an intervalVector
+      intervalVector intervals;
+      
+      for(int j=iStart; j != iEnd; ++j)
+	{
+
+	  IRanges_holder elt = get_elt_from_CompressedIRangesList_holder(&cigar_hold,j);
+	  int len_elt = get_length_from_IRanges_holder(&elt);
+	  
+	  int iSt = strandValues[j] - 1;
+	  vector<string> j_vec{txname[j], exname[j], to_string(regionid[j]), strandLevs[iSt]};
+
+	  for(int k = 0; k != len_elt; ++k)
+	    {
+	      int j_start = get_start_elt_from_IRanges_holder(&elt,0);
+	      int j_width = get_width_elt_from_IRanges_holder(&elt,0);
+	      int j_stop = j_start + j_width - 1;
+	      
+	      intervals.push_back(interval( j_start, j_stop, j_vec ));
+
+	    }
+
+	}
+      
+      intervalTree tree = intervalTree(intervals);
+      forest[chrName]  = tree;
+    }
+
+
+  return forest;
+
+}
+
+
+
+
+// [[Rcpp::export]]
+SEXP makeForest(SEXP r_listData)
+{
+
+  XPtr< IntervalForest > forest_ptr(new IntervalForest,true);
+  *forest_ptr =  _makeIntervalForest(r_listData);
+
+  return forest_ptr;
+
+}
+
 
 
 /*
@@ -479,7 +641,7 @@ SEXP makeTree(SEXP r_unlistData)
     }
 
 
-  Rcpp::XPtr< intervalTree > tree_ptr(new intervalTree,true);
+  XPtr< intervalTree > tree_ptr(new intervalTree,true);
   *tree_ptr =  intervalTree(intervals);
 
   return(tree_ptr);
@@ -517,7 +679,8 @@ map<KeyType, pair<LeftValue, RightValue> > IntersectMaps(const map<KeyType, Left
 
 
 // find overlaps for gapped reads
-map<string,string> matchGapped(IRanges_holder* irange, string strand, intervalTree& forest, int lenElt)
+map<string,string> matchGapped(IRanges_holder* irange, string strand, intervalTree& tree, 
+			       int lenElt)
 {
 
   int id = 0;
@@ -537,7 +700,6 @@ map<string,string> matchGapped(IRanges_holder* irange, string strand, intervalTr
       queries.push_back(iRange(i_start,i_end,strand));
     }
 
-
   // We expect ALL element of a gapped range to overlap EXACTLY to the same tx-exon pairs
   // We check this iteratively setting the first (the left-most element on + strand) overlap as pivot:
   // all others must be equal to that
@@ -546,7 +708,7 @@ map<string,string> matchGapped(IRanges_holder* irange, string strand, intervalTr
     map<string,string> cache_search;
     if(q == queries.begin())
       {
-	forest.findEnd(q->start, q->stop, cache_search);
+	tree.findEnd(q->start, q->stop, cache_search);
 
 	if(cache_search.size() == 0) // no match...stop!
 	  return(results);
@@ -555,14 +717,14 @@ map<string,string> matchGapped(IRanges_holder* irange, string strand, intervalTr
       }
     else if(q < (queries.end()-1)) // all the chunks but first and last
       {
-	forest.findWithin(q->start, q->stop, cache_search);
+	tree.findWithin(q->start, q->stop, cache_search);
 	
 	if(cache_search.size() == 0 || cache_search != results)
 	  return(map<string,string>()); // no match here
       }
     else {
 
-      forest.findStart(q->start, q->stop, cache_search);
+      tree.findStart(q->start, q->stop, cache_search);
 
       if(cache_search.size() == 0 || cache_search != results)
 	return(map<string,string>()); // no match here
@@ -576,7 +738,7 @@ map<string,string> matchGapped(IRanges_holder* irange, string strand, intervalTr
 
 // find overlaps for ungapped reads
 
-map<string,string> matchSimple(IRanges_holder* irange, string strand, intervalTree& forest)
+map<string,string> matchSimple(IRanges_holder* irange, string strand, intervalTree& tree)
 {
   int id = 0;
   int i_start = get_start_elt_from_IRanges_holder(irange,id);
@@ -587,14 +749,35 @@ map<string,string> matchSimple(IRanges_holder* irange, string strand, intervalTr
   queries.push_back(iRange(i_start,i_end,strand));
 
   map<string,string> results;
-  
+
   for (rangeVector::iterator q = queries.begin(); q != queries.end(); ++q) {
-    forest.findWithin(q->start, q->stop, results);
+    tree.findWithin(q->start, q->stop, results);
   }
 
   return(results);
 
 }
+
+// DL_FUNC link_to_cigar_ranges(void)
+// {
+  
+//   SEXP xp;
+//   List nativeSymbolInfo;
+//   Function getNativeSymbolInfo("getNativeSymbolInfo");
+  
+//   nativeSymbolInfo = getNativeSymbolInfo("cigar_ranges");
+//   xp = nativeSymbolInfo["address"];
+//   DL_FUNC  cigar_ranges_p = R_ExternalPtrAddrFn( xp ) ;
+//   static SEXP (*cigar_ranges)(SEXP cigar, SEXP flag, SEXP space, SEXP pos, SEXP f,
+//   			      SEXP ops, SEXP drop_empty_ranges, SEXP reduce_ranges,
+//   			      SEXP with_ops) = NULL;
+//   cigar_ranges = (SEXP(*)(SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP)) cigar_ranges_p;
+
+//   return cigar_ranges_p;
+
+// }
+
+
 
 
 // [[Rcpp::export]]
@@ -605,17 +788,17 @@ SEXP getOverlaps(SEXP r_forest, SEXP r_reads)
 
   // cigar_ranges ///////////////////////////////////////////////////////////////////////////
 
-  SEXP xp;
-  List nativeSymbolInfo;
-  Function getNativeSymbolInfo("getNativeSymbolInfo");
+  // SEXP xp;
+  // List nativeSymbolInfo;
+  // Function getNativeSymbolInfo("getNativeSymbolInfo");
   
-  nativeSymbolInfo = getNativeSymbolInfo("cigar_ranges");
-  xp = nativeSymbolInfo["address"];
-  DL_FUNC  cigar_ranges_p = R_ExternalPtrAddrFn( xp ) ;
-  static SEXP (*cigar_ranges)(SEXP cigar, SEXP flag, SEXP space, SEXP pos, SEXP f,
-  			      SEXP ops, SEXP drop_empty_ranges, SEXP reduce_ranges,
-  			      SEXP with_ops) = NULL;
-  cigar_ranges = (SEXP(*)(SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP)) cigar_ranges_p;
+  // nativeSymbolInfo = getNativeSymbolInfo("cigar_ranges");
+  // xp = nativeSymbolInfo["address"];
+  // DL_FUNC  cigar_ranges_p = R_ExternalPtrAddrFn( xp ) ;
+  // static SEXP (*cigar_ranges)(SEXP cigar, SEXP flag, SEXP space, SEXP pos, SEXP f,
+  // 			      SEXP ops, SEXP drop_empty_ranges, SEXP reduce_ranges,
+  // 			      SEXP with_ops) = NULL;
+  // cigar_ranges = (SEXP(*)(SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP, SEXP,SEXP)) cigar_ranges_p;
 
   ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -623,8 +806,11 @@ SEXP getOverlaps(SEXP r_forest, SEXP r_reads)
   SEXP forest_ptr;
   forest_ptr = forest_obj.slot("ptr");
   
-  intervalTree *forest_p = static_cast<intervalTree*>(R_ExternalPtrAddr(forest_ptr));
-  intervalTree&  forest = *forest_p;
+  // intervalTree *forest_p = static_cast<intervalTree*>(R_ExternalPtrAddr(forest_ptr));
+  // intervalTree&  forest = *forest_p;
+
+  XPtr< IntervalForest > forest_p(forest_ptr);
+  IntervalForest&  forest = *forest_p;
 
   List reads(r_reads);
 
@@ -634,13 +820,25 @@ SEXP getOverlaps(SEXP r_forest, SEXP r_reads)
   int nreads = groupid.size();
 
 
+
+  // create a string vector of strand indicator
   const vector<string> strandLev{"+","-","*"}; 
   vector < string > strand;
-  
   for(intIter itr = strand_v.begin(); itr != strand_v.end(); ++itr)
     {
       string tmpVal = strandLev[(*itr)-1];
       strand.push_back(tmpVal);
+    }
+
+
+  // create a string vector of seqnames (chromosomes)
+  IntegerVector seqname_v = reads["rname"];
+  vector<string> seq_lev = as< vector<string> >(seqname_v.attr("levels"));
+  vector<string> seqname;
+  for(intIter itr = seqname_v.begin(); itr != seqname_v.end(); ++itr)
+    {
+      string tmpVal = seq_lev[(*itr)-1];
+      seqname.push_back(tmpVal);
     }
   
 
@@ -671,21 +869,33 @@ SEXP getOverlaps(SEXP r_forest, SEXP r_reads)
   vector<int> lenOut;
 
   // Loop along reads //
-
-
-  int i_start, i_width, i_end;
-
   // unordered set or set?
   vector< string > collect_results;
 
+  string i_seqname = "";
+  intervalTree tree;
+  
   for(size_t i=0; i != nreads; i+=2) // increment by 2 as reads are paired
     {
 
       string i_strand = strand[i];
+      
+      if(i_seqname != seqname[i])
+	{
+	  i_seqname = seqname[i];
+	  IntervalForest::const_iterator map_itr = forest.find(i_seqname);
+	  if(map_itr == forest.end())
+	    {
+	      throw std::range_error("Seqname not found in annotation");
+	      return R_NilValue;
+	    }
+	  tree = map_itr->second;
+	}
+
       map<string,string> result_plus, result_neg;
       int len_elt;
       IRanges_holder elt;
-
+      
       // exon names pairs in counting are listed in direction + -> -, so we always start from "+" mate
       int j = (i_strand == "+") ? i : (i+1); // recall: condition ? value_if_true : value_if_false
 
@@ -697,7 +907,7 @@ SEXP getOverlaps(SEXP r_forest, SEXP r_reads)
       
       if(len_elt == 1)
 	{
-	  result_plus = matchSimple(&elt, i_strand,forest);
+	  result_plus = matchSimple(&elt, i_strand, tree);
 	  // some reads might fall in exons that are shared by different tx, so appear more than once!
 	  // if(result_plus.size() > 1)
 	  //   {
@@ -723,11 +933,11 @@ SEXP getOverlaps(SEXP r_forest, SEXP r_reads)
       
       if(len_elt == 1)
 	{
-	  result_neg = matchSimple(&elt, strand[k],forest);
+	  result_neg = matchSimple(&elt, strand[k],tree);
 	}
       else
 	{
-	  result_neg = matchGapped(&elt, strand[k],forest,len_elt);
+	  result_neg = matchGapped(&elt, strand[k],tree,len_elt);
 	}
 
       
